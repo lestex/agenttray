@@ -8,28 +8,6 @@ enum MenuMetrics {
     static let width: CGFloat = 290
 }
 
-/// A plain line of menu text as a custom view. A disabled NSMenuItem is dimmed
-/// by AppKit whatever colour its attributed title asks for, so a heading that
-/// should read at full strength cannot be an ordinary item.
-final class MenuTextView: NSView {
-    private let text: NSAttributedString
-
-    init(_ string: String, font: NSFont, color: NSColor) {
-        text = NSAttributedString(string: string, attributes: [.font: font, .foregroundColor: color])
-        super.init(frame: NSRect(x: 0, y: 0, width: MenuMetrics.width,
-                                 height: font.boundingRectForFont.height + 8))
-        autoresizingMask = [.width]
-    }
-
-    required init?(coder: NSCoder) { fatalError("not used") }
-
-    override var isFlipped: Bool { true }
-
-    override func draw(_ dirtyRect: NSRect) {
-        text.draw(at: NSPoint(x: MenuMetrics.leftInset, y: 4))
-    }
-}
-
 /// One window as a menu item: title and percentage, a bar, and the reset time.
 /// Drawn on a transparent background so the menu's own material shows through —
 /// the row supplies content, the system still supplies the chrome.

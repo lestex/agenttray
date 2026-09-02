@@ -1,12 +1,16 @@
 import Foundation
 
-/// Last known usage, kept on disk so a relaunch shows numbers immediately
-/// instead of an empty panel — and so a restart during a rate-limit backoff
-/// still has something to display.
+/// Last known usage per provider, kept on disk so a relaunch shows numbers
+/// immediately — and so a restart during a rate-limit backoff still has
+/// something to display.
 enum Cache {
-    private struct Payload: Codable {
+    struct Entry: Codable {
         let fetchedAt: Date
         let snapshot: Snapshot
+    }
+
+    private struct File: Codable {
+        var providers: [String: Entry]
     }
 
     private static let fileURL: URL = {
@@ -19,17 +23,23 @@ enum Cache {
         return base.appendingPathComponent("com.lestex.agenttray/usage.json")
     }()
 
-    static func load() -> (snapshot: Snapshot, fetchedAt: Date)? {
-        guard let data = try? Data(contentsOf: fileURL),
-              let payload = try? JSONDecoder().decode(Payload.self, from: data) else { return nil }
-        return (payload.snapshot, payload.fetchedAt)
+    static func load() -> [String: Entry] {
+        guard let data = try? Data(contentsOf: fileURL) else { return [:] }
+        if let file = try? JSONDecoder().decode(File.self, from: data) {
+            return file.providers
+        }
+        // A cache written before the app knew about more than one agent.
+        if let single = try? JSONDecoder().decode(Entry.self, from: data) {
+            return ["claude": single]
+        }
+        return [:]
     }
 
-    static func save(_ snapshot: Snapshot, fetchedAt: Date) {
+    static func save(_ providers: [String: Entry]) {
         do {
             try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(),
                                                     withIntermediateDirectories: true)
-            let data = try JSONEncoder().encode(Payload(fetchedAt: fetchedAt, snapshot: snapshot))
+            let data = try JSONEncoder().encode(File(providers: providers))
             try data.write(to: fileURL, options: .atomic)
         } catch {
             NSLog("AgentTray: could not cache usage: \(error.localizedDescription)")

@@ -15,12 +15,36 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.autoenablesItems = false
     }
 
+    /// How many items sit above the agent's own rows: the tabs and a separator.
+    private let headerItems = 2
+
     /// Rebuilt on every open: the countdowns move, and a menu is short-lived.
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
-        menu.addItem(header("Usage:"))
+        menu.addItem(tabs())
         menu.addItem(.separator())
+        appendBody(to: menu)
+    }
 
+    /// Swapping tabs replaces everything below them, leaving the menu open. The
+    /// tab row itself stays put — it is the view whose click we are handling.
+    private func select(_ index: Int) {
+        guard index >= 0, index < model.providers.count else { return }
+        model.selectedID = model.providers[index].id
+        while menu.numberOfItems > headerItems { menu.removeItem(at: headerItems) }
+        appendBody(to: menu)
+    }
+
+    private func tabs() -> NSMenuItem {
+        let item = NSMenuItem()
+        item.isEnabled = false
+        let selected = model.providers.firstIndex { $0.id == model.selectedID } ?? 0
+        item.view = TabRowView(titles: model.providers.map(\.title),
+                               selected: selected) { [weak self] in self?.select($0) }
+        return item
+    }
+
+    private func appendBody(to menu: NSMenu) {
         if let error = model.errorMessage, model.limits.isEmpty {
             menu.addItem(caption("Can't read usage", detail: [error, model.retryText]
                 .compactMap { $0 }.joined(separator: " ")))
@@ -68,14 +92,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
                                detailOnRight: detailOnRight)
         row.setFrameSize(NSSize(width: row.frame.width, height: GaugeRowView.height()))
         item.view = row
-        return item
-    }
-
-    /// Full strength, so it reads as a heading rather than a disabled item.
-    private func header(_ text: String) -> NSMenuItem {
-        let item = NSMenuItem()
-        item.isEnabled = false
-        item.view = MenuTextView(text, font: NSFont.menuFont(ofSize: 0), color: .labelColor)
         return item
     }
 

@@ -5,10 +5,14 @@
 A small macOS menu bar app that shows an agent's usage limits — each window with
 a percentage, a bar, and a live countdown to its reset.
 
-Claude is the provider it reads today: the 5-hour window, the weekly window and
-the weekly top-model (Fable) window. Nothing outside `Usage.swift` knows that —
-the menu bar, the menu and the cache all work from a generic `Snapshot` of
-named windows, so a second agent means a second fetcher, not a second app.
+Claude is the agent it reads today: the 5-hour window, the weekly window and the
+weekly top-model (Fable) window. Agents are tabs at the top of the menu, and the
+menu bar shows whichever one is selected.
+
+Adding another is a `UsageProvider` — an id, a tab title, and a `fetch()`
+returning a `Snapshot` of named windows — plus a line in `Providers.all`.
+Nothing else knows which agent it is showing: the menu, the menu bar, the cache
+and the backoff are all per-provider already.
 
 ![menu bar](docs/menubar.png)
 
