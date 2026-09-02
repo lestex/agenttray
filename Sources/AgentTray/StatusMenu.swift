@@ -15,12 +15,14 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.autoenablesItems = false
     }
 
-    /// How many items sit above the agent's own rows: the tabs and a separator.
-    private let headerItems = 2
+    /// How many items sit above the agent's own rows: the heading, the tabs and
+    /// a separator.
+    private let headerItems = 3
 
     /// Rebuilt on every open: the countdowns move, and a menu is short-lived.
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
+        menu.addItem(header("Usage:"))
         menu.addItem(tabs())
         menu.addItem(.separator())
         appendBody(to: menu)
@@ -33,6 +35,14 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         model.selectedID = model.providers[index].id
         while menu.numberOfItems > headerItems { menu.removeItem(at: headerItems) }
         appendBody(to: menu)
+    }
+
+    /// Full strength, so it reads as a heading rather than a disabled item.
+    private func header(_ text: String) -> NSMenuItem {
+        let item = NSMenuItem()
+        item.isEnabled = false
+        item.view = MenuTextView(text, font: NSFont.menuFont(ofSize: 0), color: .labelColor)
+        return item
     }
 
     private func tabs() -> NSMenuItem {
