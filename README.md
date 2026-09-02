@@ -119,7 +119,8 @@ The dropdown is an `NSMenu` with custom views for the window rows. An earlier
 version was a hand-built `NSPanel` — and reproducing menu chrome by hand (blur,
 scrim, corner radius, shadow, text colours) never quite matched the system's,
 however carefully the colours were measured. A menu simply is that chrome. The
-panel version is kept in `attic/` for its layout, but is outside the build.
+panel version lives in history if its layout is ever wanted:
+`git show c71dc3f`.
 
 Its rows draw content on a transparent background and are deliberately neutral:
 orange bars tinted the whole surface warm, which is what made the panel look
