@@ -1,5 +1,7 @@
 # AgentTray
 
+[![Build](https://github.com/lestex/agenttray/actions/workflows/build.yml/badge.svg)](https://github.com/lestex/agenttray/actions/workflows/build.yml)
+
 A small macOS menu bar app that shows an agent's usage limits — each window with
 a percentage, a bar, and a live countdown to its reset.
 
@@ -18,6 +20,15 @@ Click it for the windows in full:
 
 <img src="docs/menu.png" width="330" alt="the menu">
 
+## Install
+
+Grab the latest [release](https://github.com/lestex/agenttray/releases) — a
+universal build for Apple Silicon and Intel — or build it yourself below.
+
+Releases are ad-hoc signed rather than notarised, so macOS blocks the first
+launch: right-click the app and choose **Open**, or
+`xattr -d com.apple.quarantine /Applications/AgentTray.app`.
+
 ## Build and run
 
 ```sh
@@ -27,6 +38,9 @@ open build/AgentTray.app
 
 Requires the Xcode command line tools (`swiftc`) and macOS 14+. No Xcode
 project, no packages.
+
+`UNIVERSAL=1` builds both architectures, `AGENTTRAY_VERSION` sets the bundle
+version — that is what the release workflow does on a `v*` tag.
 
 To install it for real:
 
