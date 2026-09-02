@@ -22,13 +22,19 @@ Click it for the windows in full:
 
 ## Install
 
-Grab the latest [release](https://github.com/lestex/agenttray/releases) — a
+```sh
+brew install --cask lestex/tap/agenttray
+```
+
+Or grab the latest [release](https://github.com/lestex/agenttray/releases) — a
 universal build for Apple Silicon and Intel, as a .dmg or a .zip — or build it
 yourself below.
 
 Releases are ad-hoc signed rather than notarised, so macOS blocks the first
 launch: right-click the app and choose **Open**, or
-`xattr -d com.apple.quarantine /Applications/AgentTray.app`.
+`xattr -d com.apple.quarantine /Applications/AgentTray.app`. Homebrew quarantines
+casks too, so `brew install --cask --no-quarantine lestex/tap/agenttray` avoids
+the same prompt.
 
 ## Build and run
 
