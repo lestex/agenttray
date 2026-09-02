@@ -1,0 +1,28 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: ./build.sh
+
+      - name: Check the bundle
+        run: |
+          plutil -lint build/AgentTray.app/Contents/Info.plist
+          codesign --verify --verbose build/AgentTray.app
+
+      - name: Smoke test
+        # A runner has no credentials, so --dump should reach the Keychain,
+        # find nothing and say so. It proves the binary starts and links.
+        run: |
+          output=$(./build/AgentTray.app/Contents/MacOS/AgentTray --dump 2>&1)
+          echo "$output"
+          echo "$output" | grep -q "credentials"
