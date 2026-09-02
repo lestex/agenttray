@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build a universal bundle
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          UNIVERSAL=1 AGENTTRAY_VERSION="$VERSION" ./build.sh
+          lipo -archs build/AgentTray.app/Contents/MacOS/AgentTray
+
+      - name: Package
+        run: |
+          ditto -c -k --keepParent build/AgentTray.app "AgentTray-${GITHUB_REF_NAME}.zip"
+          shasum -a 256 "AgentTray-${GITHUB_REF_NAME}.zip"
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ZIP="AgentTray-${GITHUB_REF_NAME}.zip"
+          SHA=$(shasum -a 256 "$ZIP" | cut -d' ' -f1)
+          cat > notes.md <<NOTES
+          Universal build (Apple Silicon and Intel), macOS 14 or later.
+
+          ### Install
+
+          Unzip and move \`AgentTray.app\` to \`/Applications\`, then tick
+          **Open at login** in its menu.
+
+          The app is ad-hoc signed, not notarised, so macOS will refuse to open
+          it on first launch. Either right-click the app and choose **Open**, or:
+
+          \`\`\`sh
+          xattr -d com.apple.quarantine /Applications/AgentTray.app
+          \`\`\`
+
+          On first run it asks for Keychain access, to read the agent's OAuth
+          token. Choose **Always Allow**.
+
+          \`\`\`
+          SHA-256  $SHA
+          \`\`\`
+          NOTES
+          gh release create "$GITHUB_REF_NAME" "$ZIP" \
+            --title "AgentTray ${GITHUB_REF_NAME}" --notes-file notes.md
