@@ -14,6 +14,10 @@ Tick **Show percentage** in the menu to swap the gauges for labelled percentages
 
 ![menu bar, long form](docs/menubar-long.png)
 
+Click it for the windows in full:
+
+<img src="docs/menu.png" width="330" alt="the menu">
+
 ## Build and run
 
 ```sh
