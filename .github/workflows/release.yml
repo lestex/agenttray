@@ -22,21 +22,25 @@ jobs:
       - name: Package
         run: |
           ditto -c -k --keepParent build/AgentTray.app "AgentTray-${GITHUB_REF_NAME}.zip"
-          shasum -a 256 "AgentTray-${GITHUB_REF_NAME}.zip"
+          ./tools/make-dmg.sh "AgentTray-${GITHUB_REF_NAME}.dmg"
+          shasum -a 256 "AgentTray-${GITHUB_REF_NAME}".*
 
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           ZIP="AgentTray-${GITHUB_REF_NAME}.zip"
-          SHA=$(shasum -a 256 "$ZIP" | cut -d' ' -f1)
+          DMG="AgentTray-${GITHUB_REF_NAME}.dmg"
+          SHA_ZIP=$(shasum -a 256 "$ZIP" | cut -d' ' -f1)
+          SHA_DMG=$(shasum -a 256 "$DMG" | cut -d' ' -f1)
           cat > notes.md <<NOTES
           Universal build (Apple Silicon and Intel), macOS 14 or later.
 
           ### Install
 
-          Unzip and move \`AgentTray.app\` to \`/Applications\`, then tick
-          **Open at login** in its menu.
+          Open the .dmg and drag \`AgentTray.app\` to Applications — or unzip the
+          .zip and move it there yourself. Then tick **Open at login** in its
+          menu.
 
           The app is ad-hoc signed, not notarised, so macOS will refuse to open
           it on first launch. Either right-click the app and choose **Open**, or:
@@ -49,8 +53,9 @@ jobs:
           token. Choose **Always Allow**.
 
           \`\`\`
-          SHA-256  $SHA
+          SHA-256  $SHA_DMG  $DMG
+          SHA-256  $SHA_ZIP  $ZIP
           \`\`\`
           NOTES
-          gh release create "$GITHUB_REF_NAME" "$ZIP" \
+          gh release create "$GITHUB_REF_NAME" "$ZIP" "$DMG" \
             --title "AgentTray ${GITHUB_REF_NAME}" --notes-file notes.md

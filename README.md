@@ -23,7 +23,8 @@ Click it for the windows in full:
 ## Install
 
 Grab the latest [release](https://github.com/lestex/agenttray/releases) — a
-universal build for Apple Silicon and Intel — or build it yourself below.
+universal build for Apple Silicon and Intel, as a .dmg or a .zip — or build it
+yourself below.
 
 Releases are ad-hoc signed rather than notarised, so macOS blocks the first
 launch: right-click the app and choose **Open**, or
@@ -41,6 +42,7 @@ project, no packages.
 
 `UNIVERSAL=1` builds both architectures, `AGENTTRAY_VERSION` sets the bundle
 version — that is what the release workflow does on a `v*` tag.
+`tools/make-dmg.sh` packs the built bundle into a drag-to-Applications image.
 
 To install it for real:
 
