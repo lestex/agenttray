@@ -63,18 +63,17 @@ final class UsageModel: ObservableObject {
     /// Showing data we could not refresh — the menu flags it.
     var isStale: Bool { errorMessage != nil && !limits.isEmpty }
 
+    /// Polls are 15 minutes apart, so seconds here were noise. An older
+    /// snapshot keeps its date.
     var lastUpdatedText: String {
         guard let at = selected.lastUpdated else { return "Never updated" }
-        let f = DateFormatter()
-        f.dateFormat = Calendar.current.isDateInToday(at) ? "HH:mm:ss" : "d MMM HH:mm"
-        return "Updated \(f.string(from: at))"
+        return "Updated \(Format.clock(at, template: Calendar.current.isDateInToday(at) ? "jm" : "dMMMjm"))"
     }
 
+    /// A backoff can be 30 seconds long, so this one keeps them.
     var retryText: String? {
         guard let retryAt = selected.retryAt, retryAt > Date() else { return nil }
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm:ss"
-        return "Retrying at \(f.string(from: retryAt))."
+        return "Retrying at \(Format.clock(retryAt, template: "jms"))."
     }
 
     /// Replaces the gauges in the menu bar: "!" when the last fetch failed —

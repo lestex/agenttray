@@ -316,6 +316,15 @@ enum Format {
         return "Resets in \(seconds) s"
     }
 
+    /// Clock times follow the Mac's own settings — the 12- or 24-hour choice and
+    /// the locale's field order — so a template describes what to show rather
+    /// than a fixed pattern: "j" the hour, "m" minutes, "s" seconds.
+    static func clock(_ date: Date, template: String) -> String {
+        let f = DateFormatter()
+        f.setLocalizedDateFormatFromTemplate(template)
+        return f.string(from: date)
+    }
+
     static func percent(_ value: Double, spaced: Bool = true) -> String {
         let gap = spaced ? " " : ""
         let rounded = (value * 10).rounded() / 10
