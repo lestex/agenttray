@@ -25,8 +25,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusMenu = StatusMenu(model: model)
         statusItem.menu = statusMenu.menu
 
+        // DispatchQueue, not RunLoop.main: the Combine run loop scheduler only
+        // delivers in the default mode, so a change made while the menu is open
+        // — picking a tab — would not reach the menu bar until it closed.
         model.objectWillChange
-            .receive(on: RunLoop.main)
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] in self?.renderStatusItem() }
             .store(in: &cancellables)
 
