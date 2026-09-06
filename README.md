@@ -5,9 +5,12 @@
 A small macOS menu bar app that shows an agent's usage limits — each window with
 a percentage, a bar, and a live countdown to its reset.
 
-Claude is the agent it reads today: the 5-hour window, the weekly window and the
-weekly top-model (Fable) window. Agents are tabs at the top of the menu, and the
-menu bar shows whichever one is selected.
+It reads two agents today. Claude: the 5-hour window, the weekly window and the
+weekly top-model (Fable) window. Codex: the 5-hour and weekly windows of your
+ChatGPT plan. Agents are tabs at the top of the menu, and the menu bar shows
+whichever one is selected. Each reads the login its own CLI already wrote, so
+there is nothing to configure — an agent you have never logged into simply says
+so in its tab.
 
 Adding another is a `UsageProvider` — an id, a tab title, and a `fetch()`
 returning a `Snapshot` of named windows — plus a line in `Providers.all`.
@@ -91,11 +94,15 @@ which tells you nothing — so the app is deliberately unhurried:
 
 ## Where the numbers come from
 
+Nothing is sent anywhere but the agent's own usage endpoint, and a token is only
+ever put in that request's `Authorization` header.
+
+### Claude
+
 The app reads the Claude Code OAuth token from the Keychain (generic password
 service `Claude Code-credentials`, with `~/.claude/.credentials.json` as a
 fallback) and calls `GET https://api.anthropic.com/api/oauth/usage` — the same
-endpoint `/usage` in Claude Code uses. Nothing is sent anywhere else, and the
-token is only ever put in that request's `Authorization` header.
+endpoint `/usage` in Claude Code uses.
 
 The first launch after each build shows a Keychain prompt, because the app is
 ad-hoc signed and a rebuild changes its signature. Choose **Always Allow**.
@@ -103,14 +110,34 @@ ad-hoc signed and a rebuild changes its signature. Choose **Always Allow**.
 If the token has expired, the menu says so; run `claude` once in a terminal
 to refresh it and the app will pick up the new token on its next poll.
 
+### Codex
+
+Codex keeps its ChatGPT login in a file rather than the Keychain —
+`~/.codex/auth.json`, or `$CODEX_HOME/auth.json` — refreshed whenever the CLI
+runs. The app reads `tokens.access_token` from it and calls
+`GET https://chatgpt.com/backend-api/wham/usage` with the account id in a
+`chatgpt-account-id` header.
+
+It only ever reads that file. Renewing the token itself would rotate the refresh
+token and log the CLI out, so when the token expires — about ten days after the
+last `codex` run — the tab says so, and the next poll after you run `codex` again
+picks the new one up.
+
+That payload names two fixed slots, `primary_window` and `secondary_window`,
+rather than named windows, so their titles come from `limit_window_seconds`:
+18000 is the `5H` window, 604800 the `WEEK` one. A plan with different windows
+labels itself from the same rule. The `credits` and `model_usage` blocks are
+ignored — neither is a rate limit.
+
 ### Response shape
 
 ```sh
-build/AgentTray.app/Contents/MacOS/AgentTray --dump
+build/AgentTray.app/Contents/MacOS/AgentTray --dump         # claude
+build/AgentTray.app/Contents/MacOS/AgentTray --dump codex
 ```
 
-prints the raw payload. Windows are matched by key in `UsageAPI.known`
-(`Sources/AgentTray/Usage.swift`):
+prints an agent's raw payload. Claude's windows are matched by key in
+`UsageAPI.known` (`Sources/AgentTray/Usage.swift`):
 
 | API key        | Shown as       | Menu bar |
 | -------------- | -------------- | -------- |
@@ -162,7 +189,9 @@ want it always orange.
 
 | File               | What it does                                        |
 | ------------------ | --------------------------------------------------- |
-| `Usage.swift`      | Keychain, API call, tolerant parsing, formatting     |
+| `Usage.swift`      | Keychain, the shared transport, Claude's parsing     |
+| `Codex.swift`      | The Codex login file and its usage payload           |
+| `Provider.swift`   | The `UsageProvider` protocol and the agent list      |
 | `UsageModel.swift` | Observable state, polling, login item                |
 | `AppDelegate.swift`| Status item, timers                                 |
 | `StatusMenu.swift` | The dropdown menu                                   |

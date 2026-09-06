@@ -28,18 +28,19 @@ struct Snapshot: Equatable, Codable {
 }
 
 enum UsageError: LocalizedError {
-    case noCredentials
-    case unauthorized
+    /// Nothing to authenticate with. Each agent keeps its login in its own
+    /// place, so the message it carries names that place.
+    case noCredentials(String)
+    /// The token was rejected; the message says how to refresh it.
+    case unauthorized(String)
     case rateLimited(retryAfter: TimeInterval?)
     case http(Int)
     case badPayload
 
     var errorDescription: String? {
         switch self {
-        case .noCredentials:
-            return "No Claude credentials found in the Keychain. Log in with `claude` first."
-        case .unauthorized:
-            return "Token rejected. Run `claude` in a terminal to refresh the login."
+        case .noCredentials(let hint), .unauthorized(let hint):
+            return hint
         case .rateLimited(let retryAfter):
             guard let retryAfter else { return "Rate limited by the API (HTTP 429)." }
             return "Rate limited by the API (HTTP 429), for another \(Int(retryAfter)) s."
@@ -98,13 +99,12 @@ enum Credentials {
     }
 }
 
-// MARK: - Fetching
+// MARK: - Transport
 
-enum UsageAPI {
-    static let endpoint = URL(string: "https://api.anthropic.com/api/oauth/usage")!
-
-    /// The only network call the app makes. Ephemeral: a credentialed request
-    /// has no business leaving cookies or cached responses on disk.
+/// What every agent's fetcher shares: one session and one reading of a failed
+/// status. Ephemeral, because a credentialed request has no business leaving
+/// cookies or cached responses on disk.
+enum HTTP {
     private static let session: URLSession = {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 20
@@ -114,37 +114,21 @@ enum UsageAPI {
         return URLSession(configuration: config)
     }()
 
-    /// The bare request, so `--dump` can report the status and headers when the
-    /// call fails.
-    static func perform() async throws -> (HTTPURLResponse, Data) {
-        guard let token = Credentials.accessToken() else { throw UsageError.noCredentials }
-        var request = URLRequest(url: endpoint)
-        request.timeoutInterval = 20
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
-        request.setValue("AgentTray/1.0", forHTTPHeaderField: "User-Agent")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-
+    static func send(_ request: URLRequest) async throws -> (HTTPURLResponse, Data) {
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw UsageError.badPayload }
         return (http, data)
     }
 
-    static func fetchRaw() async throws -> Data {
-        let (http, data) = try await perform()
+    /// The body of a successful response; anything else becomes a UsageError.
+    /// `staleLogin` is what to tell the user when the token is rejected.
+    static func body(_ http: HTTPURLResponse, _ data: Data, staleLogin: String) throws -> Data {
         switch http.statusCode {
         case 200..<300: return data
-        case 401, 403: throw UsageError.unauthorized
-        case 429:
-            throw UsageError.rateLimited(retryAfter: retryAfter(from: http))
+        case 401, 403: throw UsageError.unauthorized(staleLogin)
+        case 429: throw UsageError.rateLimited(retryAfter: retryAfter(from: http))
         default: throw UsageError.http(http.statusCode)
         }
-    }
-
-    static func fetch() async throws -> Snapshot {
-        let snapshot = parse(try await fetchRaw())
-        guard !snapshot.limits.isEmpty else { throw UsageError.badPayload }
-        return snapshot
     }
 
     /// Retry-After is either delta-seconds or an HTTP date. A zero or a past
@@ -161,6 +145,35 @@ enum UsageAPI {
         guard let date = formatter.date(from: header) else { return nil }
         let delay = date.timeIntervalSinceNow
         return delay > 0 ? delay : nil
+    }
+}
+
+// MARK: - Fetching
+
+enum UsageAPI {
+    static let endpoint = URL(string: "https://api.anthropic.com/api/oauth/usage")!
+
+    static let missingLogin = "No Claude credentials found in the Keychain. Log in with `claude` first."
+    static let staleLogin = "Token rejected. Run `claude` in a terminal to refresh the login."
+
+    /// The bare request, so `--dump` can report the status and headers when the
+    /// call fails.
+    static func perform() async throws -> (HTTPURLResponse, Data) {
+        guard let token = Credentials.accessToken() else { throw UsageError.noCredentials(missingLogin) }
+        var request = URLRequest(url: endpoint)
+        request.timeoutInterval = 20
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
+        request.setValue("AgentTray/1.0", forHTTPHeaderField: "User-Agent")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        return try await HTTP.send(request)
+    }
+
+    static func fetch() async throws -> Snapshot {
+        let (http, data) = try await perform()
+        let snapshot = parse(try HTTP.body(http, data, staleLogin: staleLogin))
+        guard !snapshot.limits.isEmpty else { throw UsageError.badPayload }
+        return snapshot
     }
 
     // MARK: Parsing
