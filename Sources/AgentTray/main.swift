@@ -5,13 +5,20 @@ import SwiftUI
 
 // MARK: - Entry point
 
-// `AgentTray --dump` prints the raw usage payload, which is handy when the
-// API grows a new window and the popover needs to learn about it.
-if CommandLine.arguments.contains("--dump") {
+// `AgentTray --dump [agent]` prints the raw usage payload, which is handy when
+// an API grows a new window and the popover needs to learn about it. The agent
+// is a provider id — "claude" (the default) or "codex".
+if let flag = CommandLine.arguments.firstIndex(of: "--dump") {
+    let name = CommandLine.arguments.dropFirst(flag + 1).first
+    guard let provider = name.map(Providers.named) ?? Providers.all.first else {
+        let known = Providers.all.map(\.id).joined(separator: ", ")
+        FileHandle.standardError.write(Data("unknown agent \(name ?? ""); try one of: \(known)\n".utf8))
+        exit(2)
+    }
     let semaphore = DispatchSemaphore(value: 0)
     Task {
         do {
-            let (http, data) = try await UsageAPI.perform()
+            let (http, data) = try await provider.dump()
             if http.statusCode != 200 {
                 var report = "HTTP \(http.statusCode)\n"
                 for (key, value) in http.allHeaderFields {
