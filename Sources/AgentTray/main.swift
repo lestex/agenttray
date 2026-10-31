@@ -39,6 +39,22 @@ if let flag = CommandLine.arguments.firstIndex(of: "--dump") {
     exit(0)
 }
 
+// `AgentTray --history [agent]` prints what the menu's token sections would show.
+if let flag = CommandLine.arguments.firstIndex(of: "--history") {
+    let name = CommandLine.arguments.dropFirst(flag + 1).first
+    guard let provider = name.map(Providers.named) ?? Providers.all.first else {
+        FileHandle.standardError.write(Data("unknown agent \(name ?? "")\n".utf8))
+        exit(2)
+    }
+    let history = provider.history()
+    for day in history.days {
+        print(Format.clock(day.start, template: "EEEdMMM"), Format.tokens(day.tokens), separator: "\t")
+    }
+    print("")
+    for model in history.models { print(model.name, Format.tokens(model.tokens), separator: "\t") }
+    exit(0)
+}
+
 // `delegate` stays a global because NSApplication holds its delegate weakly.
 let delegate = MainActor.assumeIsolated { AppDelegate() }
 MainActor.assumeIsolated {

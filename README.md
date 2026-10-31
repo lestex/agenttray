@@ -87,6 +87,12 @@ Then tick **Open at login** in the menu.
   the reason alongside the timestamp.
 - Refresh is entirely background: at launch, every 15 minutes, and on waking
   from sleep. Nothing you click triggers a fetch.
+- Below the limits, **Tokens by day** and **Tokens by model** cover the last
+  seven days, read from the session logs each CLI writes on this Mac —
+  `~/.claude/projects` and `~/.codex/sessions`. They count input, output and
+  cached tokens, and only this machine's sessions, not the whole account. The
+  logs are re-read each time the menu opens; nothing is sent anywhere.
+  `AgentTray --history [claude|codex]` prints the same numbers.
 
 ## Polling, caching and rate limits
 
@@ -205,6 +211,7 @@ want it always orange.
 | ------------------ | --------------------------------------------------- |
 | `Usage.swift`      | Keychain, the shared transport, Claude's parsing     |
 | `Codex.swift`      | The Codex login file and its usage payload           |
+| `TokenHistory.swift`| Tokens by day and model from local session logs     |
 | `Provider.swift`   | The `UsageProvider` protocol and the agent list      |
 | `UsageModel.swift` | Observable state, polling, login item                |
 | `AppDelegate.swift`| Status item, timers                                 |
