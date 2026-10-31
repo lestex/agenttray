@@ -68,7 +68,7 @@ enum CodexAPI {
         let limits = ["primary_window", "secondary_window"].enumerated().compactMap { order, key in
             (block[key] as? [String: Any]).flatMap { limit(key, $0, order: order) }
         }
-        return Snapshot(limits: limits)
+        return Snapshot(limits: limits, plan: root["plan_type"] as? String)
     }
 
     private static func limit(_ key: String, _ window: [String: Any], order: Int) -> Limit? {

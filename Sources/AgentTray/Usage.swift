@@ -25,6 +25,8 @@ struct ExtraUsage: Equatable, Codable {
 struct Snapshot: Equatable, Codable {
     var limits: [Limit] = []
     var extra: ExtraUsage?
+    /// The subscription, as the agent names it: "pro", "free", "max".
+    var plan: String?
 }
 
 enum UsageError: LocalizedError {
@@ -58,15 +60,21 @@ enum Credentials {
     /// Claude Code stores its OAuth blob as a generic password under this service.
     static let keychainService = "Claude Code-credentials"
 
-    static func accessToken() -> String? {
-        if let data = keychainBlob(), let token = oauthToken(in: data) {
-            return token
+    struct Login {
+        let accessToken: String
+        /// "pro", "max" — what the login says the account is subscribed to.
+        let plan: String?
+    }
+
+    static func login() -> Login? {
+        if let data = keychainBlob(), let login = login(in: data) {
+            return login
         }
         // Fallback for setups that keep credentials on disk instead.
         let file = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".claude/.credentials.json")
         if let data = try? Data(contentsOf: file) {
-            return oauthToken(in: data)
+            return login(in: data)
         }
         return nil
     }
@@ -88,11 +96,11 @@ enum Credentials {
     /// tree for the key could pick one of those instead — and which one depends
     /// on dictionary order, which changes from launch to launch. Only the
     /// account's own token is read; a flat `{"accessToken": …}` is accepted too.
-    private static func oauthToken(in data: Data) -> String? {
+    private static func login(in data: Data) -> Login? {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
         let oauth = root["claudeAiOauth"] as? [String: Any] ?? root
         guard let token = oauth["accessToken"] as? String, !token.isEmpty else { return nil }
-        return token
+        return Login(accessToken: token, plan: oauth["subscriptionType"] as? String)
     }
 }
 
@@ -156,10 +164,14 @@ enum UsageAPI {
     /// The bare request, so `--dump` can report the status and headers when the
     /// call fails.
     static func perform() async throws -> (HTTPURLResponse, Data) {
-        guard let token = Credentials.accessToken() else { throw UsageError.noCredentials(missingLogin) }
+        try await perform(as: Credentials.login())
+    }
+
+    private static func perform(as login: Credentials.Login?) async throws -> (HTTPURLResponse, Data) {
+        guard let login else { throw UsageError.noCredentials(missingLogin) }
         var request = URLRequest(url: endpoint)
         request.timeoutInterval = 20
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(login.accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
         request.setValue("AgentTray/1.0", forHTTPHeaderField: "User-Agent")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -167,9 +179,11 @@ enum UsageAPI {
     }
 
     static func fetch() async throws -> Snapshot {
-        let (http, data) = try await perform()
-        let snapshot = parse(try HTTP.body(http, data, staleLogin: staleLogin))
+        let login = Credentials.login()
+        let (http, data) = try await perform(as: login)
+        var snapshot = parse(try HTTP.body(http, data, staleLogin: staleLogin))
         guard !snapshot.limits.isEmpty else { throw UsageError.badPayload }
+        snapshot.plan = login?.plan
         return snapshot
     }
 
@@ -321,6 +335,22 @@ enum Format {
         let f = DateFormatter()
         f.setLocalizedDateFormatFromTemplate(template)
         return f.string(from: date)
+    }
+
+    /// "pro" → "Pro plan", "max_5x" → "Max 5x plan".
+    static func plan(_ raw: String) -> String {
+        let words = raw.replacingOccurrences(of: "_", with: " ")
+        return words.prefix(1).uppercased() + words.dropFirst() + " plan"
+    }
+
+    /// 0, 950, 12.3K, 1.4M, 152.5M, 2.1B.
+    static func tokens(_ count: Int) -> String {
+        let value = Double(count)
+        for (limit, suffix) in [(1e9, "B"), (1e6, "M"), (1e3, "K")] where value >= limit {
+            let scaled = value / limit
+            return (scaled >= 100 ? String(format: "%.0f", scaled) : String(format: "%.1f", scaled)) + suffix
+        }
+        return "\(count)"
     }
 
     static func percent(_ value: Double, spaced: Bool = true) -> String {

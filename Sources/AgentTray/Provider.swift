@@ -11,6 +11,9 @@ protocol UsageProvider: Sendable {
     func fetch() async throws -> Snapshot
     /// The response behind `fetch()`, unparsed, for `--dump`.
     func dump() async throws -> (HTTPURLResponse, Data)
+    /// Tokens by day and model from the CLI's local session logs. Blocking
+    /// file reads, so call it off the main thread.
+    func history() -> TokenHistory
 }
 
 struct ClaudeProvider: UsageProvider {
@@ -18,6 +21,7 @@ struct ClaudeProvider: UsageProvider {
     let title = "Claude"
     func fetch() async throws -> Snapshot { try await UsageAPI.fetch() }
     func dump() async throws -> (HTTPURLResponse, Data) { try await UsageAPI.perform() }
+    func history() -> TokenHistory { ClaudeHistory.load() }
 }
 
 struct CodexProvider: UsageProvider {
@@ -25,6 +29,7 @@ struct CodexProvider: UsageProvider {
     let title = "Codex"
     func fetch() async throws -> Snapshot { try await CodexAPI.fetch() }
     func dump() async throws -> (HTTPURLResponse, Data) { try await CodexAPI.perform() }
+    func history() -> TokenHistory { CodexHistory.load() }
 }
 
 /// The agents this build knows about, in tab order.

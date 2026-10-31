@@ -9,11 +9,15 @@ private let selectedProviderKey = "selectedProvider"
 struct ProviderState: Equatable {
     var limits: [Limit] = []
     var extra: ExtraUsage?
+    var plan: String?
     var errorMessage: String?
     var retryAt: Date?
     var lastUpdated: Date?
     var isLoading = false
     var failures = 0
+    /// From the local session logs; nil until the first read lands.
+    var history: TokenHistory?
+    var historyReadAt: Date?
 }
 
 @MainActor
@@ -38,6 +42,7 @@ final class UsageModel: ObservableObject {
     private var tasks: [String: Task<Void, Never>] = [:]
     /// A scheduled retry after a transient failure, one per agent.
     private var retries: [String: Task<Void, Never>] = [:]
+    private var historyReads: [String: Task<Void, Never>] = [:]
 
     /// How often to poll the usage endpoint. The windows move slowly and the
     /// countdowns tick locally, so there is nothing to gain from polling hard —
@@ -52,6 +57,7 @@ final class UsageModel: ObservableObject {
         for (id, entry) in Cache.load() {
             states[id] = ProviderState(limits: entry.snapshot.limits,
                                        extra: entry.snapshot.extra,
+                                       plan: entry.snapshot.plan,
                                        lastUpdated: entry.fetchedAt)
         }
         if providers.contains(where: { $0.id == selectedID }) == false {
@@ -66,6 +72,8 @@ final class UsageModel: ObservableObject {
     var extra: ExtraUsage? { selected.extra }
     var errorMessage: String? { selected.errorMessage }
     var isLoading: Bool { selected.isLoading }
+    var plan: String? { selected.plan }
+    var history: TokenHistory? { selected.history }
 
     /// Showing data we could not refresh — the menu flags it.
     var isStale: Bool { errorMessage != nil && !limits.isEmpty }
@@ -97,6 +105,27 @@ final class UsageModel: ObservableObject {
     /// from sleep. Refreshes every agent, so switching tabs shows current data.
     func refresh() {
         for provider in providers { refresh(provider) }
+        readHistory()
+    }
+
+    /// Re-reads every agent's session logs off the main thread. Cheap — only
+    /// logs touched in the last week are opened — so it also runs each time
+    /// the menu opens, to keep "Today" current between polls.
+    func readHistory() {
+        for provider in providers {
+            let id = provider.id
+            guard historyReads[id] == nil else { continue }
+            if let at = states[id]?.historyReadAt, Date().timeIntervalSince(at) < 10 { continue }
+            historyReads[id] = Task { [weak self] in
+                let history = await Task.detached(priority: .utility) { provider.history() }.value
+                guard let self else { return }
+                self.historyReads[id] = nil
+                if self.states[id]?.history != history {
+                    self.states[id, default: ProviderState()].history = history
+                }
+                self.states[id, default: ProviderState()].historyReadAt = Date()
+            }
+        }
     }
 
     private func refresh(_ provider: any UsageProvider) {
@@ -125,7 +154,15 @@ final class UsageModel: ObservableObject {
         let now = Date()
         retries[id]?.cancel()
         retries[id] = nil
-        states[id] = ProviderState(limits: snapshot.limits, extra: snapshot.extra, lastUpdated: now)
+        var state = states[id] ?? ProviderState()
+        state.limits = snapshot.limits
+        state.extra = snapshot.extra
+        state.plan = snapshot.plan
+        state.lastUpdated = now
+        state.errorMessage = nil
+        state.retryAt = nil
+        state.failures = 0
+        states[id] = state
         var cached = Cache.load()
         cached[id] = Cache.Entry(fetchedAt: now, snapshot: snapshot)
         Cache.save(cached)
