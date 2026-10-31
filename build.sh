@@ -50,6 +50,10 @@ PLIST
 
 cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 
+# The terminal report ships inside the bundle, ahead of the signature below, so
+# the signature covers it; the Homebrew cask links `atcli` onto the PATH.
+cp "$ROOT/cli/atcli" "$ROOT/cli/atcli.py" "$APP/Contents/Resources/"
+
 # Ad-hoc signature keeps the Keychain prompt to a one-time "Always Allow"
 # (per build — a rebuild changes the signature and asks again).
 codesign --force --sign - "$APP" >/dev/null 2>&1 || echo "warning: codesign failed; Keychain may prompt on every launch"

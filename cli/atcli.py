@@ -5,10 +5,10 @@ Reads the logins the two CLIs already wrote and calls their own usage
 endpoints, then adds up tokens from their local session logs. Standard library
 only, Python 3.13+.
 
-    agenttray.py                  # every agent
-    agenttray.py claude           # one agent
-    agenttray.py --json           # machine-readable
-    agenttray.py --no-history     # limits only
+    atcli.py                  # every agent
+    atcli.py claude           # one agent
+    atcli.py --json           # machine-readable
+    atcli.py --no-history     # limits only
 """
 import argparse
 import json
@@ -22,6 +22,9 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from typing import Optional
+
+if sys.version_info < (3, 13):
+    sys.exit(f"atcli needs Python 3.13 or later (this is {sys.version.split()[0]}).")
 
 HOME = Path.home()
 DAYS = 7
@@ -470,7 +473,7 @@ def as_json(report):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Usage limits and token history for Claude and Codex.")
+    parser = argparse.ArgumentParser(prog="atcli", description="Usage limits and token history for Claude and Codex.")
     parser.add_argument("agents", nargs="*", metavar="agent", help="claude, codex (default: both)")
     parser.add_argument("--json", action="store_true", help="print JSON instead of text")
     parser.add_argument("--no-history", action="store_true", help="skip the token sections")

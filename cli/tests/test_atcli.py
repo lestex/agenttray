@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-import agenttray as at  # noqa: E402
+import atcli as at  # noqa: E402
 
 NOW = datetime(2026, 10, 31, 12, 0, tzinfo=timezone.utc)
 TODAY = date(2026, 10, 31)
