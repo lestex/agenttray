@@ -94,6 +94,28 @@ Then tick **Open at login** in the menu.
   logs are re-read each time the menu opens; nothing is sent anywhere.
   `AgentTray --history [claude|codex]` prints the same numbers.
 
+## Command line
+
+`cli/agenttray.py` prints the same thing in a terminal — plan, limits with their
+reset countdowns, tokens by day and by model. One file, standard library only,
+Python 3.13 or later, and it reads the same logins and logs as the app.
+
+```sh
+./cli/agenttray.py              # both agents
+./cli/agenttray.py codex        # one agent
+./cli/agenttray.py --json       # machine-readable
+./cli/agenttray.py --no-history # limits only
+```
+
+It exits 1 when an agent could not be read. The Keychain prompt for the Claude
+login appears once for `security`, the tool it asks; choose **Always Allow**.
+
+Tests are plain `unittest`, and run in CI on the three newest Pythons (3.13, 3.14, 3.15):
+
+```sh
+python3 -m unittest discover -s cli/tests
+```
+
 ## Polling, caching and rate limits
 
 The usage endpoint rate limits, and it answers a 429 with `retry-after: 0`,
@@ -219,4 +241,5 @@ want it always orange.
 | `GaugeRowView.swift`| A window's row inside the menu                     |
 | `StatusIcon.swift` | Draws the menu bar pill strip                        |
 | `RobotMark.swift`  | The robot-head mark, as a vector path                |
+| `cli/agenttray.py` | The same report in a terminal, in Python             |
 | `Palette.swift`    | Colours and the utilisation thresholds               |
