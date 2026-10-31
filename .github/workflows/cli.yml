@@ -1,0 +1,34 @@
+name: CLI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The oldest Python the CLI claims to support, and a current one.
+        python-version: ["3.9", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Test
+        run: python -m unittest discover -s cli/tests -v
+
+      - name: Smoke test
+        # A runner has no logins, so the CLI should say so and exit 1 rather
+        # than crash. It proves the script starts and runs on this Python.
+        run: |
+          set +e
+          output=$(python cli/agenttray.py --no-history 2>&1)
+          status=$?
+          echo "$output"
+          [ "$status" -eq 1 ] && echo "$output" | grep -q "credentials"
