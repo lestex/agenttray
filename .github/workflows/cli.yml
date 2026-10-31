@@ -11,8 +11,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # The oldest Python the CLI claims to support, and a current one.
-        python-version: ["3.9", "3.13"]
+        # The three newest releases; the oldest is the CLI's minimum.
+        python-version: ["3.13", "3.14", "3.15"]
     steps:
       - uses: actions/checkout@v4
 

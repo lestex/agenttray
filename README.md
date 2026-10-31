@@ -98,7 +98,7 @@ Then tick **Open at login** in the menu.
 
 `cli/agenttray.py` prints the same thing in a terminal — plan, limits with their
 reset countdowns, tokens by day and by model. One file, standard library only,
-Python 3.9 or later, and it reads the same logins and logs as the app.
+Python 3.13 or later, and it reads the same logins and logs as the app.
 
 ```sh
 ./cli/agenttray.py              # both agents
@@ -110,7 +110,7 @@ Python 3.9 or later, and it reads the same logins and logs as the app.
 It exits 1 when an agent could not be read. The Keychain prompt for the Claude
 login appears once for `security`, the tool it asks; choose **Always Allow**.
 
-Tests are plain `unittest`, and run in CI on Python 3.9 and 3.13:
+Tests are plain `unittest`, and run in CI on the three newest Pythons (3.13, 3.14, 3.15):
 
 ```sh
 python3 -m unittest discover -s cli/tests

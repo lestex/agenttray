@@ -3,7 +3,7 @@
 
 Reads the logins the two CLIs already wrote and calls their own usage
 endpoints, then adds up tokens from their local session logs. Standard library
-only, Python 3.9+.
+only, Python 3.13+.
 
     agenttray.py                  # every agent
     agenttray.py claude           # one agent
