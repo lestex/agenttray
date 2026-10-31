@@ -23,9 +23,10 @@ Tick **Show percentage** in the menu to swap the gauges for labelled percentages
 
 ![menu bar, long form](docs/menubar-long.png)
 
-Click it for the windows in full:
+Click it for the plan, every window in full, and the last week's tokens by day
+and by model — one tab per agent:
 
-<img src="docs/menu.png" width="330" alt="the menu">
+<img src="docs/menu-claude.png" width="330" alt="the menu, on the Claude tab">
 
 ## Install
 
@@ -231,6 +232,18 @@ bar, where you notice it without looking.
 
 Only needed when the mark changes; `build.sh` copies the existing `.icns` into
 the bundle.
+
+## The pictures
+
+`docs/menubar.png` and `docs/menubar-long.png` are drawn by the app's own
+`StatusIcon`, so they never drift from what it shows:
+
+```sh
+./tools/make-menubar-images.sh
+```
+
+`docs/menu-claude.png` is a screenshot of the open menu. A menu cannot be drawn offscreen,
+so retake it by hand when the menu changes.
 
 ## The mark
 
