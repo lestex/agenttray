@@ -47,10 +47,11 @@ jobs:
           menu.
 
           The app is ad-hoc signed, not notarised, so macOS will refuse to open
-          it on first launch. Either right-click the app and choose **Open**, or:
+          it on first launch ("Apple could not verify…"). Choose **Done**, then
+          click **Open Anyway** under System Settings → Privacy & Security, or:
 
           \`\`\`sh
-          xattr -d com.apple.quarantine /Applications/AgentTray.app
+          xattr -dr com.apple.quarantine /Applications/AgentTray.app
           \`\`\`
 
           On first run it asks for Keychain access, to read the agent's OAuth

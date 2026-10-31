@@ -36,6 +36,13 @@ final class UsageModel: ObservableObject {
     @Published private(set) var launchAtLogin = SMAppService.mainApp.status == .enabled
 
     private var tasks: [String: Task<Void, Never>] = [:]
+    /// A scheduled retry after a transient failure, one per agent.
+    private var retries: [String: Task<Void, Never>] = [:]
+
+    /// How often to poll the usage endpoint. The windows move slowly and the
+    /// countdowns tick locally, so there is nothing to gain from polling hard —
+    /// and the endpoint rate limits.
+    static let pollInterval: TimeInterval = 900
 
     /// De-dupes triggers that can coincide — a launch right after a wake, say.
     private let freshFor: TimeInterval = 60
@@ -116,6 +123,8 @@ final class UsageModel: ObservableObject {
 
     func apply(_ snapshot: Snapshot, for id: String) {
         let now = Date()
+        retries[id]?.cancel()
+        retries[id] = nil
         states[id] = ProviderState(limits: snapshot.limits, extra: snapshot.extra, lastUpdated: now)
         var cached = Cache.load()
         cached[id] = Cache.Entry(fetchedAt: now, snapshot: snapshot)
@@ -126,15 +135,47 @@ final class UsageModel: ObservableObject {
         var state = states[id] ?? ProviderState()
         state.errorMessage = error.localizedDescription
         state.failures += 1
+        let backoff = min(maxBackoff, 30 * pow(2, Double(state.failures - 1)))
         if case UsageError.rateLimited(let retryAfter) = error {
             // Honour Retry-After when the server sends one, otherwise back off
             // 30 s, 60 s, 120 s … up to half an hour. Requests made while the
             // limit is in force may well be what keeps it in force.
-            let backoff = retryAfter ?? min(maxBackoff, 30 * pow(2, Double(state.failures - 1)))
-            state.retryAt = Date().addingTimeInterval(backoff)
+            state.retryAt = Date().addingTimeInterval(retryAfter ?? backoff)
+        } else if Self.isTransient(error) {
+            // Typically a wake from sleep that beat the network back. Waiting
+            // for the next poll would leave the "!" up for 15 minutes, so try
+            // again on the same 30 s, 60 s, 120 s … schedule.
+            let retryAt = Date().addingTimeInterval(min(backoff, Self.pollInterval))
+            state.retryAt = retryAt
+            scheduleRetry(for: id, at: retryAt)
         }
         if state.lastUpdated == nil { state.limits = []; state.extra = nil }
         states[id] = state
+    }
+
+    private func scheduleRetry(for id: String, at date: Date) {
+        retries[id]?.cancel()
+        retries[id] = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(max(0, date.timeIntervalSinceNow)))
+            guard !Task.isCancelled, let self else { return }
+            self.retries[id] = nil
+            if let provider = self.providers.first(where: { $0.id == id }) { self.refresh(provider) }
+        }
+    }
+
+    /// Failures that say nothing about the login or the payload, and are likely
+    /// to clear by themselves: no network yet, a timeout, a server-side error.
+    private static func isTransient(_ error: Error) -> Bool {
+        if case UsageError.http(let code) = error { return code >= 500 }
+        guard let urlError = error as? URLError else { return false }
+        switch urlError.code {
+        case .notConnectedToInternet, .networkConnectionLost, .timedOut,
+             .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed,
+             .internationalRoamingOff, .dataNotAllowed:
+            return true
+        default:
+            return false
+        }
     }
 
     // MARK: - Settings

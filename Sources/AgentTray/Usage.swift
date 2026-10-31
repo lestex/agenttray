@@ -59,14 +59,14 @@ enum Credentials {
     static let keychainService = "Claude Code-credentials"
 
     static func accessToken() -> String? {
-        if let data = keychainBlob(), let token = findString(key: "accessToken", in: data) {
+        if let data = keychainBlob(), let token = oauthToken(in: data) {
             return token
         }
         // Fallback for setups that keep credentials on disk instead.
         let file = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".claude/.credentials.json")
         if let data = try? Data(contentsOf: file) {
-            return findString(key: "accessToken", in: data)
+            return oauthToken(in: data)
         }
         return nil
     }
@@ -83,19 +83,16 @@ enum Credentials {
         return out as? Data
     }
 
-    /// The blob nests the token under a provider key, so walk the JSON for it.
-    private static func findString(key: String, in data: Data) -> String? {
-        guard let root = try? JSONSerialization.jsonObject(with: data) else { return nil }
-        func walk(_ any: Any) -> String? {
-            if let dict = any as? [String: Any] {
-                if let hit = dict[key] as? String, !hit.isEmpty { return hit }
-                for value in dict.values { if let hit = walk(value) { return hit } }
-            } else if let array = any as? [Any] {
-                for value in array { if let hit = walk(value) { return hit } }
-            }
-            return nil
-        }
-        return walk(root)
+    /// The Claude login sits under `claudeAiOauth`. The same blob also holds an
+    /// `accessToken` per MCP server under `mcpOAuth`, so searching the whole
+    /// tree for the key could pick one of those instead — and which one depends
+    /// on dictionary order, which changes from launch to launch. Only the
+    /// account's own token is read; a flat `{"accessToken": …}` is accepted too.
+    private static func oauthToken(in data: Data) -> String? {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        let oauth = root["claudeAiOauth"] as? [String: Any] ?? root
+        guard let token = oauth["accessToken"] as? String, !token.isEmpty else { return nil }
+        return token
     }
 }
 
@@ -179,11 +176,12 @@ enum UsageAPI {
     // MARK: Parsing
 
     /// Display metadata for the windows we know about. Anything else still shows
-    /// up in the popover with a humanised title, so a new window won't be dropped.
+    /// up in the menu with a humanised title, so a new window won't be dropped.
     private static let known: [String: (title: String, short: String?, order: Int)] = [
         "five_hour": ("5-hour window", "5H", 0),
         "seven_day": ("Weekly", "WEEK", 1),
         // The weekly top-model window ships under a rotating codename.
+        "iguana_necktie": ("Weekly Fable", "FABLE", 2),
         "nimbus_quill": ("Weekly Fable", "FABLE", 2),
         "seven_day_fable": ("Weekly Fable", "FABLE", 2),
         "seven_day_opus": ("Weekly Opus", "OPUS", 2),
