@@ -6,7 +6,7 @@ import SwiftUI
 // MARK: - Entry point
 
 // `AgentTray --dump [agent]` prints the raw usage payload, which is handy when
-// an API grows a new window and the popover needs to learn about it. The agent
+// an API grows a new window and the menu needs to learn about it. The agent
 // is a provider id — "claude" (the default) or "codex".
 if let flag = CommandLine.arguments.firstIndex(of: "--dump") {
     let name = CommandLine.arguments.dropFirst(flag + 1).first

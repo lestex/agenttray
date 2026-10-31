@@ -13,11 +13,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var timer: Timer?
     private var cancellables: Set<AnyCancellable> = []
 
-    /// How often to poll the usage endpoint. The windows move slowly and the
-    /// countdowns tick locally, so there is nothing to gain from polling hard —
-    /// and the endpoint rate limits.
-    private let pollInterval: TimeInterval = 900
-
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.image = StatusIcon.image(withText: "…")
@@ -48,7 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         renderStatusItem()
 
         model.refresh()
-        timer = Timer.scheduledTimer(withTimeInterval: pollInterval, repeats: true) { [weak self] _ in
+        timer = Timer.scheduledTimer(withTimeInterval: UsageModel.pollInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.model.refresh() }
         }
     }

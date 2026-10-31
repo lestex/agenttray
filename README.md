@@ -38,10 +38,20 @@ universal build for Apple Silicon and Intel, as a .dmg or a .zip — or build it
 yourself below.
 
 Releases are ad-hoc signed rather than notarised, so macOS blocks the first
-launch: right-click the app and choose **Open**, or
-`xattr -d com.apple.quarantine /Applications/AgentTray.app`. Homebrew quarantines
-casks too, so `brew install --cask --no-quarantine lestex/tap/agenttray` avoids
-the same prompt.
+launch with *"AgentTray.app" Not Opened — Apple could not verify…*. Choose
+**Done**, not **Move to Trash**, then either:
+
+- open **System Settings → Privacy & Security**, scroll down and click
+  **Open Anyway** next to AgentTray, or
+- clear the quarantine flag in a terminal:
+
+  ```sh
+  xattr -dr com.apple.quarantine /Applications/AgentTray.app
+  ```
+
+Right-click → **Open** no longer gets past this on macOS 15 and later. Homebrew
+quarantines casks too, so `brew install --cask --no-quarantine lestex/tap/agenttray`
+avoids the prompt. A copy you build yourself is never quarantined.
 
 ## Build and run
 
@@ -83,14 +93,18 @@ Then tick **Open at login** in the menu.
 The usage endpoint rate limits, and it answers a 429 with `retry-after: 0`,
 which tells you nothing — so the app is deliberately unhurried:
 
-- polls every 5 minutes; the countdowns tick locally between polls
+- polls every 15 minutes, plus at launch and on waking from sleep; the
+  countdowns are worked out locally between polls
 - a 60-second freshness guard de-dupes triggers that coincide
-- on a 429 it backs off 30 s, 60 s, 120 s … up to 10 minutes, and the backoff
-  holds even for the manual refresh button
+- on a 429 it honours `Retry-After` when there is one, and otherwise backs off
+  30 s, 60 s, 120 s … up to 30 minutes, skipping polls until the backoff ends
+- a network error or a 5xx — usually a wake from sleep that beat the network
+  back — is retried on the same 30 s, 60 s, 120 s … schedule, up to the poll
+  interval, rather than waiting for the next poll
 - the last successful snapshot is cached to
   `~/Library/Caches/com.lestex.agenttray/usage.json`, so a relaunch shows the
-  previous numbers straight away and a failed refresh keeps them on screen with
-  an amber warning next to the timestamp (hover it for the reason)
+  previous numbers straight away, and a failed refresh keeps them in the menu
+  with the reason and the retry time next to the timestamp
 
 ## Where the numbers come from
 
@@ -139,14 +153,14 @@ build/AgentTray.app/Contents/MacOS/AgentTray --dump codex
 prints an agent's raw payload. Claude's windows are matched by key in
 `UsageAPI.known` (`Sources/AgentTray/Usage.swift`):
 
-| API key        | Shown as       | Menu bar |
-| -------------- | -------------- | -------- |
-| `five_hour`    | 5-hour window  | `5H`     |
-| `seven_day`    | Weekly         | `WEEK`   |
-| `nimbus_quill` | Weekly Fable   | `FABLE`  |
+| API key          | Shown as       | Menu bar |
+| ---------------- | -------------- | -------- |
+| `five_hour`      | 5-hour window  | `5H`     |
+| `seven_day`      | Weekly         | `WEEK`   |
+| `iguana_necktie` | Weekly Fable   | `FABLE`  |
 
-The weekly top-model window ships under a rotating codename (`nimbus_quill`
-today, `seven_day_opus` on older accounts). Any *unrecognised* window that
+The weekly top-model window ships under a rotating codename (`iguana_necktie`
+today, `nimbus_quill` before it, `seven_day_opus` on older accounts). Any *unrecognised* window that
 reports a `utilization` still shows up in the menu with a humanised title —
 so when the codename rotates again, add a row to that table to give it a proper
 name and a menu bar pill. `extra_usage` credits get the footer line; `spend` is
