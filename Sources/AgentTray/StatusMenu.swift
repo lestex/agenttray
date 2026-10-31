@@ -39,14 +39,14 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             }
     }
 
-    /// How many items sit above the agent's own rows: the tabs and a separator.
-    private let headerItems = 2
+    /// How many items sit above the agent's own rows: just the tabs. The plan
+    /// and the separator below it belong to the selected agent.
+    private let headerItems = 1
 
     /// Rebuilt on every open: the countdowns move, and a menu is short-lived.
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
         menu.addItem(tabs())
-        menu.addItem(.separator())
         appendBody(to: menu)
     }
 
@@ -103,7 +103,11 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private func appendBody(to menu: NSMenu) {
         shown = content
 
-        menu.addItem(section(["Limits", model.plan.map(Format.plan)].compactMap { $0 }.joined(separator: " · ")))
+        if let plan = model.plan {
+            menu.addItem(section(Format.plan(plan)))
+        }
+        menu.addItem(divider())
+        menu.addItem(section("Limits"))
 
         if let error = model.errorMessage, model.limits.isEmpty {
             menu.addItem(caption("Can't read usage", detail: [error, model.retryText]
@@ -128,7 +132,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             appendHistory(history, to: menu)
         }
 
-        menu.addItem(.separator())
+        menu.addItem(divider())
 
         let status = model.isStale
             ? "\(model.lastUpdatedText) — \([model.errorMessage, model.retryText].compactMap { $0 }.joined(separator: " "))"
@@ -139,7 +143,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
                             action: #selector(toggleShowsPercentage)))
         menu.addItem(toggle("Open at login", isOn: model.launchAtLogin, action: #selector(toggleLaunchAtLogin)))
 
-        menu.addItem(.separator())
+        menu.addItem(divider())
         let quit = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
@@ -147,7 +151,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     /// Tokens by day, then by model, both over the same week of local logs.
     private func appendHistory(_ history: TokenHistory, to menu: NSMenu) {
-        menu.addItem(.separator())
+        menu.addItem(divider())
         menu.addItem(section("Tokens by day"))
         let calendar = Calendar.current
         let dayLabels = history.days.map {
@@ -160,7 +164,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
                              emphasized: label == "Today"))
         }
 
-        menu.addItem(.separator())
+        menu.addItem(divider())
         menu.addItem(section("Tokens by model · \(TokenHistory.dayCount) days"))
         guard !history.models.isEmpty else {
             menu.addItem(caption("Nothing in the last \(TokenHistory.dayCount) days"))
@@ -174,6 +178,13 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     // MARK: - Items
+
+    private func divider() -> NSMenuItem {
+        let item = NSMenuItem()
+        item.isEnabled = false
+        item.view = SeparatorView()
+        return item
+    }
 
     /// A window: title and percentage, a bar, and the reset time.
     private func gauge(_ title: String, percent: Double, detail: String,

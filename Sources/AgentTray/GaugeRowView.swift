@@ -30,6 +30,28 @@ final class MenuTextView: NSView {
     }
 }
 
+/// A divider spanning the same column as the custom rows. The system separator
+/// is inset to the native items' text, after the checkmark column, so its left
+/// gap never matched the bars above and below it.
+final class SeparatorView: NSView {
+    init() {
+        super.init(frame: NSRect(x: 0, y: 0, width: MenuMetrics.width, height: 11))
+        autoresizingMask = [.width]
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let scale = window?.backingScaleFactor ?? 2
+        let line = 1 / scale
+        let y = (floor(bounds.midY * scale) / scale)
+        NSColor.separatorColor.setFill()
+        NSRect(x: MenuMetrics.leftInset, y: y,
+               width: bounds.width - MenuMetrics.leftInset - MenuMetrics.rightInset,
+               height: line).fill()
+    }
+}
+
 /// One line of a token breakdown: a label, a thin bar scaled against the
 /// section's largest value, and the count. Labels share a column width so the
 /// bars start in one place.
