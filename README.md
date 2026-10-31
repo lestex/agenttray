@@ -96,16 +96,29 @@ Then tick **Open at login** in the menu.
 
 ## Command line
 
-`cli/agenttray.py` prints the same thing in a terminal — plan, limits with their
-reset countdowns, tokens by day and by model. One file, standard library only,
-Python 3.13 or later, and it reads the same logins and logs as the app.
+`atcli` prints the same thing in a terminal — plan, limits with their
+reset countdowns, tokens by day and by model. It is one Python file, standard
+library only, and it reads the same logins and logs as the app.
 
 ```sh
-./cli/agenttray.py              # both agents
-./cli/agenttray.py codex        # one agent
-./cli/agenttray.py --json       # machine-readable
-./cli/agenttray.py --no-history # limits only
+atcli              # both agents
+atcli codex        # one agent
+atcli --json       # machine-readable
+atcli --no-history # limits only
 ```
+
+It ships inside the app, in `AgentTray.app/Contents/Resources`, and needs
+Python 3.13 or later. With Homebrew, `brew install --cask lestex/tap/agenttray`
+installs that Python and puts `atcli` on your PATH. From a .dmg or .zip, link
+it yourself:
+
+```sh
+ln -s /Applications/AgentTray.app/Contents/Resources/atcli /usr/local/bin/atcli
+```
+
+`cli/atcli` is a small launcher that finds a suitable `python3.x`, because
+the `python3` on a Mac's PATH is often Apple's older one. In a checkout, run
+`./cli/atcli`.
 
 It exits 1 when an agent could not be read. The Keychain prompt for the Claude
 login appears once for `security`, the tool it asks; choose **Always Allow**.
@@ -241,5 +254,5 @@ want it always orange.
 | `GaugeRowView.swift`| A window's row inside the menu                     |
 | `StatusIcon.swift` | Draws the menu bar pill strip                        |
 | `RobotMark.swift`  | The robot-head mark, as a vector path                |
-| `cli/agenttray.py` | The same report in a terminal, in Python             |
+| `cli/atcli.py`     | The same report in a terminal, in Python             |
 | `Palette.swift`    | Colours and the utilisation thresholds               |

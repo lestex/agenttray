@@ -54,6 +54,10 @@ jobs:
           xattr -dr com.apple.quarantine /Applications/AgentTray.app
           \`\`\`
 
+          The terminal version is inside the app: \`atcli\` on your PATH with
+          Homebrew, or link \`AgentTray.app/Contents/Resources/atcli\`
+          yourself. It needs Python 3.13 or later.
+
           On first run it asks for Keychain access, to read the agent's OAuth
           token. Choose **Always Allow**.
 

@@ -23,12 +23,18 @@ jobs:
       - name: Test
         run: python -m unittest discover -s cli/tests -v
 
+      - name: Launcher
+        # Homebrew puts a symlink to the launcher on the PATH, so run it that way.
+        run: |
+          ln -s "$PWD/cli/atcli" "$RUNNER_TEMP/atcli"
+          "$RUNNER_TEMP/atcli" --help
+
       - name: Smoke test
         # A runner has no logins, so the CLI should say so and exit 1 rather
         # than crash. It proves the script starts and runs on this Python.
         run: |
           set +e
-          output=$(python cli/agenttray.py --no-history 2>&1)
+          output=$(python cli/atcli.py --no-history 2>&1)
           status=$?
           echo "$output"
           [ "$status" -eq 1 ] && echo "$output" | grep -q "credentials"

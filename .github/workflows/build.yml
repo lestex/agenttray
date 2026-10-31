@@ -18,6 +18,8 @@ jobs:
         run: |
           plutil -lint build/AgentTray.app/Contents/Info.plist
           codesign --verify --verbose build/AgentTray.app
+          test -x build/AgentTray.app/Contents/Resources/atcli
+          test -f build/AgentTray.app/Contents/Resources/atcli.py
 
       - name: Smoke test
         # A runner has no credentials, so --dump should reach the Keychain,
