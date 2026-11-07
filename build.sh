@@ -6,7 +6,10 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 APP="$ROOT/build/AgentTray.app"
 BIN="$APP/Contents/MacOS/AgentTray"
 DEPLOYMENT="${MACOS_DEPLOYMENT:-14.0}"
-VERSION="${AGENTTRAY_VERSION:-1.0}"
+# A release passes the tag as AGENTTRAY_VERSION. A local build names the commit it
+# came from (0.5.1-3-g53b9329-dirty), so it can't pass for a release.
+VERSION="${AGENTTRAY_VERSION:-$(git -C "$ROOT" describe --tags --always --dirty 2>/dev/null | sed 's/^v//' || true)}"
+VERSION="${VERSION:-dev}"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
