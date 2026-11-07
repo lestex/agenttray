@@ -5,6 +5,11 @@ import SwiftUI
 
 // MARK: - Entry point
 
+if CommandLine.arguments.contains("--version") {
+    print("AgentTray \(AppInfo.version)")
+    exit(0)
+}
+
 // `AgentTray --dump [agent]` prints the raw usage payload, which is handy when
 // an API grows a new window and the menu needs to learn about it. The agent
 // is a provider id — "claude" (the default) or "codex".

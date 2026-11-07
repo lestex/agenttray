@@ -13,6 +13,7 @@ only, Python 3.13+.
 import argparse
 import json
 import os
+import plistlib
 import re
 import subprocess
 import sys
@@ -27,6 +28,17 @@ if sys.version_info < (3, 13):
     sys.exit(f"atcli needs Python 3.13 or later (this is {sys.version.split()[0]}).")
 
 HOME = Path.home()
+
+
+def app_version(script=None):
+    """The AgentTray version when this runs from inside AgentTray.app, where
+    the bundle's Info.plist sits one level above Resources; "dev" otherwise."""
+    script = Path(script or __file__).resolve()
+    try:
+        with open(script.parent.parent / "Info.plist", "rb") as f:
+            return plistlib.load(f).get("CFBundleShortVersionString") or "dev"
+    except Exception:  # no bundle, or a plist we can't read: the version is a nicety
+        return "dev"
 DAYS = 7
 AGENTS = ("claude", "codex")
 
@@ -477,6 +489,7 @@ def main(argv=None):
     parser.add_argument("agents", nargs="*", metavar="agent", help="claude, codex (default: both)")
     parser.add_argument("--json", action="store_true", help="print JSON instead of text")
     parser.add_argument("--no-history", action="store_true", help="skip the token sections")
+    parser.add_argument("--version", action="version", version=f"atcli {app_version()}")
     args = parser.parse_args(argv)
 
     chosen = args.agents or list(AGENTS)

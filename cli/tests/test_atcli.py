@@ -98,6 +98,36 @@ class Names(unittest.TestCase):
         self.assertEqual(at.codex_window_name(None), "Window")
 
 
+class Version(unittest.TestCase):
+    def bundle(self, root, plist=None):
+        resources = Path(root) / "AgentTray.app/Contents/Resources"
+        resources.mkdir(parents=True)
+        if plist is not None:
+            (resources.parent / "Info.plist").write_bytes(plist)
+        script = resources / "atcli.py"
+        script.write_text("")
+        return script
+
+    def test_reads_the_bundle_version(self):
+        import plistlib
+        with tempfile.TemporaryDirectory() as root:
+            script = self.bundle(root, plistlib.dumps({"CFBundleShortVersionString": "0.5.1"}))
+            self.assertEqual(at.app_version(script), "0.5.1")
+
+    def test_dev_outside_a_bundle_or_with_a_bad_plist(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.assertEqual(at.app_version(self.bundle(root)), "dev")
+        with tempfile.TemporaryDirectory() as root:
+            self.assertEqual(at.app_version(self.bundle(root, b"not a plist")), "dev")
+
+    def test_version_flag(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as caught:
+            at.main(["--version"])
+        self.assertEqual(caught.exception.code, 0)
+        self.assertRegex(out.getvalue(), r"^atcli \S+\n$")
+
+
 class Transport(unittest.TestCase):
     def fail_with(self, code):
         error = urllib.error.HTTPError("https://x", code, "msg", {}, None)

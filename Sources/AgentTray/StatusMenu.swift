@@ -144,6 +144,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(toggle("Open at login", isOn: model.launchAtLogin, action: #selector(toggleLaunchAtLogin)))
 
         menu.addItem(divider())
+        menu.addItem(caption("AgentTray \(AppInfo.version)"))
         let quit = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)

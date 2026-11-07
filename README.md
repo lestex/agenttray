@@ -65,7 +65,10 @@ Requires the Xcode command line tools (`swiftc`) and macOS 14+. No Xcode
 project, no packages.
 
 `UNIVERSAL=1` builds both architectures, `AGENTTRAY_VERSION` sets the bundle
-version — that is what the release workflow does on a `v*` tag.
+version — that is what the release workflow does on a `v*` tag. Without it, a
+local build is versioned by the commit it came from (`0.5.1-3-g53b9329-dirty`),
+so it can't pass for a release. The version is the last line of the menu, and
+`AgentTray --version` and `atcli --version` print it.
 `tools/make-dmg.sh` packs the built bundle into a drag-to-Applications image.
 
 To install it for real:
@@ -265,6 +268,7 @@ want it always orange.
 | `Provider.swift`   | The `UsageProvider` protocol and the agent list      |
 | `UsageModel.swift` | Observable state, polling, login item                |
 | `AppDelegate.swift`| Status item, timers                                 |
+| `AppInfo.swift`    | The app's version, read from the bundle              |
 | `StatusMenu.swift` | The dropdown menu                                   |
 | `GaugeRowView.swift`| A window's row inside the menu                     |
 | `StatusIcon.swift` | Draws the menu bar pill strip                        |
