@@ -54,8 +54,15 @@ cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 # the signature covers it; the Homebrew cask links `atcli` onto the PATH.
 cp "$ROOT/cli/atcli" "$ROOT/cli/atcli.py" "$APP/Contents/Resources/"
 
-# Ad-hoc signature keeps the Keychain prompt to a one-time "Always Allow"
-# (per build — a rebuild changes the signature and asks again).
-codesign --force --sign - "$APP" >/dev/null 2>&1 || echo "warning: codesign failed; Keychain may prompt on every launch"
+# Keychain "Always Allow" is remembered against the app's code signature. An
+# ad-hoc signature changes with every build, so it asks again after each
+# update; a stable identity (CODESIGN_IDENTITY, a self-signed code-signing
+# certificate) keeps the same designated requirement and is asked only once.
+if [ -n "${CODESIGN_IDENTITY:-}" ]; then
+  codesign --force --sign "$CODESIGN_IDENTITY" "$APP"
+else
+  echo "warning: CODESIGN_IDENTITY not set; ad-hoc signing (Keychain will re-prompt after each build)" >&2
+  codesign --force --sign - "$APP" >/dev/null 2>&1 || echo "warning: codesign failed; Keychain may prompt on every launch"
+fi
 
 echo "built $APP ($VERSION, $(lipo -archs "$BIN"))"
