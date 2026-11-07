@@ -14,14 +14,43 @@ jobs:
       # The secrets context is not readable from a step-level `if`, so it comes
       # through job env instead.
       TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+      SIGNING_CERT_P12: ${{ secrets.SIGNING_CERT_P12 }}
+      SIGNING_CERT_PASSWORD: ${{ secrets.SIGNING_CERT_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
+
+      # Keychain "Always Allow" is tied to the code signature, so releases are
+      # signed with the same self-signed certificate every time; with an
+      # ad-hoc signature every upgrade would prompt again.
+      - name: Import the signing certificate
+        run: |
+          if [ -z "$SIGNING_CERT_P12" ]; then
+            echo "SIGNING_CERT_P12 is not set; falling back to an ad-hoc signature"
+            exit 0
+          fi
+          KC="$RUNNER_TEMP/signing.keychain-db"
+          KC_PASS="$(uuidgen)"
+          echo "$SIGNING_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KC_PASS" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KC_PASS" "$KC"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$SIGNING_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KC_PASS" "$KC" >/dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          # codesign refuses an untrusted self-signed identity ("no identity found").
+          security find-certificate -a -p "$KC" > "$RUNNER_TEMP/cert.pem"
+          sudo security add-trusted-cert -d -r trustRoot -p codeSign -k "$KC" "$RUNNER_TEMP/cert.pem"
+          IDENTITY="$(security find-identity -v -p codesigning "$KC" | sed -n 's/.*"\(.*\)"/\1/p' | head -1)"
+          [ -n "$IDENTITY" ] || { echo "no valid signing identity after import" >&2; exit 1; }
+          echo "CODESIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+          rm -f "$RUNNER_TEMP/cert.p12"
 
       - name: Build a universal bundle
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           UNIVERSAL=1 AGENTTRAY_VERSION="$VERSION" ./build.sh
           lipo -archs build/AgentTray.app/Contents/MacOS/AgentTray
+          codesign -dv build/AgentTray.app 2>&1 | grep -E "Identifier|Authority|Signature"
 
       - name: Package
         run: |
@@ -59,7 +88,8 @@ jobs:
           yourself. It needs Python 3.13 or later.
 
           On first run it asks for Keychain access, to read the agent's OAuth
-          token. Choose **Always Allow**.
+          token. Choose **Always Allow**; releases share one signing identity,
+          so upgrades will not ask again.
 
           \`\`\`
           SHA-256  $SHA_DMG  $DMG

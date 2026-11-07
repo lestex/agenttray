@@ -160,8 +160,10 @@ service `Claude Code-credentials`, with `~/.claude/.credentials.json` as a
 fallback) and calls `GET https://api.anthropic.com/api/oauth/usage` — the same
 endpoint `/usage` in Claude Code uses.
 
-The first launch after each build shows a Keychain prompt, because the app is
-ad-hoc signed and a rebuild changes its signature. Choose **Always Allow**.
+The first launch shows a Keychain prompt; choose **Always Allow**. Releases are
+signed with a fixed self-signed certificate, so the choice survives upgrades.
+A local build is ad-hoc signed unless you set `CODESIGN_IDENTITY`, and an
+ad-hoc signature changes with every build, so it prompts again each time.
 
 If the token has expired, the menu says so; run `claude` once in a terminal
 to refresh it and the app will pick up the new token on its next poll.
