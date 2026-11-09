@@ -134,10 +134,11 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
         menu.addItem(divider())
 
-        let status = model.isStale
-            ? "\(model.lastUpdatedText) — \([model.errorMessage, model.retryText].compactMap { $0 }.joined(separator: " "))"
-            : model.lastUpdatedText
-        menu.addItem(caption(status))
+        // The reason goes on its own lines: it can be long, and the caption wraps.
+        let reason = model.isStale
+            ? [model.errorMessage, model.retryText].compactMap { $0 }.joined(separator: " ")
+            : nil
+        menu.addItem(caption(model.lastUpdatedText, detail: reason))
 
         menu.addItem(toggle("Show percentage", isOn: model.showsPercentage,
                             action: #selector(toggleShowsPercentage)))
@@ -212,17 +213,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private func caption(_ text: String, detail: String? = nil) -> NSMenuItem {
         let item = NSMenuItem()
         item.isEnabled = false
-        let string = NSMutableAttributedString(
-            string: detail == nil ? text : "\(text)\n",
-            attributes: [.font: NSFont.menuFont(ofSize: NSFont.smallSystemFontSize),
-                         .foregroundColor: NSColor.secondaryLabelColor])
-        if let detail {
-            string.append(NSAttributedString(
-                string: detail,
-                attributes: [.font: NSFont.menuFont(ofSize: NSFont.smallSystemFontSize),
-                             .foregroundColor: NSColor.secondaryLabelColor]))
-        }
-        item.attributedTitle = string
+        item.view = CaptionView(detail.map { "\(text)\n\($0)" } ?? text)
         return item
     }
 
