@@ -30,6 +30,40 @@ final class MenuTextView: NSView {
     }
 }
 
+/// Small secondary text that wraps inside the menu's fixed width. A native item
+/// with an attributed title never wraps, and a menu is as wide as its widest
+/// item — so one long line, an error message say, stretched the whole menu.
+final class CaptionView: NSView {
+    private let text: NSAttributedString
+
+    /// Where the native items' text starts, so a caption lines up with them.
+    private static let inset = MenuMetrics.leftInset + 15
+    private static let options: NSString.DrawingOptions = [.usesLineFragmentOrigin, .usesFontLeading]
+
+    init(_ string: String) {
+        text = NSAttributedString(string: string, attributes: [
+            .font: NSFont.menuFont(ofSize: NSFont.smallSystemFontSize),
+            .foregroundColor: NSColor.secondaryLabelColor,
+        ])
+        let width = MenuMetrics.width - Self.inset - MenuMetrics.rightInset
+        let height = text.boundingRect(with: NSSize(width: width, height: .greatestFiniteMagnitude),
+                                       options: Self.options).height
+        super.init(frame: NSRect(x: 0, y: 0, width: MenuMetrics.width, height: ceil(height) + 8))
+        autoresizingMask = [.width]
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    override var isFlipped: Bool { true }
+
+    override func draw(_ dirtyRect: NSRect) {
+        text.draw(with: NSRect(x: Self.inset, y: 4,
+                               width: bounds.width - Self.inset - MenuMetrics.rightInset,
+                               height: bounds.height - 8),
+                  options: Self.options)
+    }
+}
+
 /// A divider spanning the same column as the custom rows. The system separator
 /// is inset to the native items' text, after the checkmark column, so its left
 /// gap never matched the bars above and below it.
